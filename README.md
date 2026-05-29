@@ -37,20 +37,57 @@ Dense Layer (1) + Sigmoid
 
 ## Build and Run (MSVC)
 
-```bash
-    # Compile
-    cl /Zi /EHsc /nologo /Fe:inference_engine.exe inference_engine.c cJSON.c
-
-    # Run
-    .\inference_engine.exe weights.json archive\train_FD001.txt---
+**Step 1 — Train the model and export weights:**
+```cmd
+python train_sliding_window.py
 ```
-## Benchmark Example
-```text
-BENCHMARK REPORT
+ 
+**Step 2 — Compile with optimizations:**
+```cmd
+cl /O2 /arch:AVX2 /nologo /Fe:inference_engine.exe inference_engine.c cJSON.c
+```
+ 
+> `/O2` enables compiler optimizations. `/arch:AVX2` enables SIMD instructions, allowing the CPU to process 8 floats per cycle — matching NumPy-level throughput.
+ 
+**Step 3 — Run benchmark:**
+```cmd
+.\inference_engine.exe weights.json archive\train_FD001.txt
+```
 
-Single thread time : 0.9151 s
-Multi thread time  : 0.2495 s
-Speedup            : 3.67x
+## Benchmark Results
+### C vs Python (single sample inference)
+ 
+| Mode | Throughput | Latency |
+|------|-----------|---------|
+| C — single thread (`/Zi` debug) | 16,856 packets/s | 0.0593 ms |
+| Python — NumPy (single sample) | 79,566 packets/s | 0.0126 ms |
+| C — single thread (`/O2 AVX2`) | 86,181 packets/s | 0.0116 ms |
+| C — 4 threads (`/O2 AVX2`) | **294,871 packets/s** | **0.0034 ms** |
+ 
+**Key insight:** Without compiler optimizations, the naive C loop is ~5x slower than NumPy (which uses BLAS/SIMD internally). With `/O2 /arch:AVX2`, the C engine surpasses NumPy on a single thread and reaches **3.7x NumPy throughput** with 4 threads.
+ 
+### Thread scaling
+ 
+```
+>>> [1] Single Thread
+  Anomaly    : 2193 / 15731  (13.9%)
+  Time       : 0. 825 s
+  Throughput : 86,181 packets/s
+  Avg. latency: 0.0116 ms/packet
+ 
+>>> [2] Multi Thread (4 threads)
+  Anomaly    : 2193 / 15731  (13.9%)
+  Time       : 0.0533 s
+  Throughput : 294,871 packets/s
+  Avg. latency: 0.0034 ms/packet
+ 
+====================================
+        BENCHMARK REPORT
+====================================
+  Single thread time : 0.1825 s
+  Multi thread time  : 0.0533 s
+  Speedup            : 3.42x
+====================================
 ```
 
 ---

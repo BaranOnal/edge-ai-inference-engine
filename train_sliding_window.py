@@ -152,3 +152,29 @@ with open("weights.json", "w") as f:
     json.dump(export, f)
 
 print("weights.json saved.")
+
+
+import time
+
+# Measure on a single sample (same condition as C)
+X_single = X_test[:, :1]   # (200, 1)
+
+# Warm-up (eliminate JIT effect)
+for _ in range(100):
+    model.forward(X_single)
+
+# Benchmark — 10000 iterations
+N = 10000   
+t0 = time.perf_counter()
+for _ in range(N):
+    model.forward(X_single)
+t1 = time.perf_counter()
+
+elapsed    = t1 - t0
+per_sample = elapsed / N * 1000   # ms
+
+print(f"\n===== PYTHON FORWARD PASS =====")
+print(f"Time         : {elapsed:.4f} s")
+print(f"Throughput   : {N/elapsed:.0f} packet/s")
+print(f"Avg. latency : {per_sample:.4f} ms/packet")
+print(f"=====================================")

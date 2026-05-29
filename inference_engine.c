@@ -1,6 +1,6 @@
-/* inference_engine.c
+/* 
    Compile:
-     cl /Zi /EHsc /nologo /Fe:inference_engine.exe inference_engine.c cJSON.c
+     cl /O2 /arch:AVX2 /nologo /Fe:inference_engine.exe inference_engine.c cJSON.c
    Run:
      .\inference_engine.exe weights.json archive\train_FD001.txt
 */
@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>// memcpy için
+#include <string.h>// for memcpy
 #include <math.h>// expf float, expf(x)-> euler^x  ; exp(X) double, expf(X) float  
 #include "cJSON.h"
 
@@ -115,7 +115,7 @@ static void json_to_flat(cJSON *arr, float *dest) {
 
 static int load_weights(const char *path) {
     FILE *f = fopen(path, "rb");
-    if (!f) { printf("HATA: %s bulunamadi!\n", path); return 0; }
+    if (!f) { printf("Error: %s not found!\n", path); return 0; }
     fseek(f, 0, SEEK_END);
     long len = ftell(f);
     rewind(f);
@@ -126,7 +126,7 @@ static int load_weights(const char *path) {
 
     cJSON *js = cJSON_Parse(buf);
     free(buf);
-    if (!js) { printf("JSON parse hatasi!\n"); return 0; }
+    if (!js) { printf("JSON parse error!\n"); return 0; }
 
     cJSON *arch = cJSON_GetObjectItem(js, "architecture");
     input_dim   = cJSON_GetArrayItem(arch, 0)->valueint;
@@ -165,7 +165,7 @@ static int load_weights(const char *path) {
 // Data + sliding window   
 static int load_data(const char *path) {
     FILE *f = fopen(path, "r");
-    if (!f) { printf("HATA: %s bulunamadi!\n", path); return 0; }
+    if (!f) { printf("Error: %s not found!\n", path); return 0; }
 
     // sensor indices used in the py
     static const int COL[] = {6, 7, 8, 11};
@@ -205,7 +205,7 @@ static int load_data(const char *path) {
        If the window size is 50, 51 windows can be created from 100 rows
        (1-50, 2-51, ..., 51-100).
     */
-    if (max_windows <= 0) { printf("Yeterli satir yok!\n"); return 0; }
+    if (max_windows <= 0) { printf("Error: Not enough rows!\n"); return 0; }
 
     g_windows   = (float(*)[200])malloc(max_windows * 200 * sizeof(float));
     g_labels    = (int*)malloc(max_windows * sizeof(int));
@@ -243,9 +243,9 @@ static double run_single_thread(void) {
 
     printf("  Anomaly    : %ld / %d  (%.1f%%)\n", anomalies, g_total_rows,
            100.0 * anomalies / g_total_rows);
-    printf("  Time       : %.4f sn\n", elapsed);
-    printf("  Throughput : %.0f paket/sn\n", g_total_rows / elapsed);
-    printf("  Avg. latency: %.4f ms/paket\n\n", elapsed * 1000.0 / g_total_rows);
+    printf("  Time       : %.4f s\n", elapsed);
+    printf("  Throughput : %.0f packet/s\n", g_total_rows / elapsed);
+    printf("  Avg. latency: %.4f ms/packet\n\n", elapsed * 1000.0 / g_total_rows);
     return elapsed;
 }
 
@@ -290,9 +290,9 @@ static double run_multi_thread(int n_threads) {
     printf("  Anomaly    : %ld / %d  (%.1f%%)\n",
            (long)g_anomaly_count, g_total_rows,
            100.0 * g_anomaly_count / g_total_rows);
-    printf("  Time       : %.4f sn\n", elapsed);
-    printf("  Throughput : %.0f paket/sn\n", g_total_rows / elapsed);
-    printf("  Avg. latency: %.4f ms/paket\n\n", elapsed * 1000.0 / g_total_rows);
+    printf("  Time       : %.4f s\n", elapsed);
+    printf("  Throughput : %.0f packet/s\n", g_total_rows / elapsed);
+    printf("  Avg. latency: %.4f ms/packet\n\n", elapsed * 1000.0 / g_total_rows);
     return elapsed;
 }
 
@@ -317,8 +317,8 @@ int main(int argc, char *argv[]) {
     printf("====================================\n");
     printf("BENCHMARK REPORT\n");
     printf("====================================\n");
-    printf("    Single thread time : %.4f sn\n", t_single);
-    printf("    Multi thread time  : %.4f sn\n", t_multi);
+    printf("    Single thread time : %.4f s\n", t_single);
+    printf("    Multi thread time  : %.4f s\n", t_multi);
     printf("    Speedup            : %.2fx\n",   speedup);
     printf("====================================\n\n");
 
